@@ -51,3 +51,11 @@ Modify to pull the data from your data array.
 def create_jekyll_event_posts(self, sessions, users):
 ...
 ```
+
+### Run the script
+
+To run the script simply do:
+
+```bash
+$ python3 main.py
+```
