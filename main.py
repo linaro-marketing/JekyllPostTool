@@ -9,46 +9,61 @@ from io import BytesIO
 import datetime
 import re   
 import pickle
+import glob
 
 class JekyllConnectSessionsTool:
     
     """
-    This class can create and modify Jekyll posts for the Connect static website
+    This class can create and modifies Jekyll posts for the Connect static website
     based on export data from Pathable.
     """
 
-    def __init__(self, data_src_file_name="sessions.csv", user_src_file_name="users.csv"):
+    def __init__(self, post_location="not-set", data_src_file_name="sessions.csv", user_src_file_name="users.csv"):
 
         # Get the data source csv file
         self._data_src_file_name = data_src_file_name
         # Get the data source csv file
         self._user_src_file_name = user_src_file_name
-
+        # Location of posts
+        self._post_location = post_location
         # Local Output path for images
         self.output_path = os.getcwd() + "/" + "posts/"
 
         self.main()
 
     def main(self):
-        sessions = self.grab_session_data_from_csv()
-        users = self.grab_user_data_from_csv()
-    
-        # Download attendee photos from pathable.
-        for user in users:
-            if user["photo_url"]:
-                username = user["first_name"] + user["second_name"]
-                photo_download = self.grab_photo(user["photo_url"], output_filename=username)
-                print(photo_download)
-                user["image-name"] = photo_download
-            else:
-                print("No Photo Url for {0} - skipping!").format(username)
 
-        # Dump the data into cache file
-        self.cache_file(sessions, "sessions.pkl")
-        self.cache_file(users, "users.pkl")
+        # Check to see if there is already a sessions.pkl file created
+        try:
+            sessions = pickle.load(open("sessions.pkl", "rb"))
+        except (OSError, IOError) as e:
+            sessions = self.grab_session_data_from_csv()
+            self.cache_file(sessions, "sessions.pkl")
 
-        # Create Jekyll posts.
-        self.create_jekyll_event_posts(sessions, users)
+        # Load the users.pkl file if exists
+        try:
+            users = pickle.load(open("users.pkl", "rb"))
+        except (OSError, IOError) as e:
+            users = self.grab_user_data_from_csv()
+            # Download attendee photos from pathable.
+            for user in users:
+                if user["photo_url"]:
+                    username = user["first_name"] + user["second_name"]
+                    photo_download = self.grab_photo(user["photo_url"], output_filename=username)
+                    print(photo_download)
+                    user["image-name"] = photo_download
+                else:
+                    print("No Photo Url for {0} - skipping!").format(username)
+            # Dump the data into cache file
+            self.cache_file(users, "users.pkl")
+
+        # Check to see if a post_location is provided.
+        # If so modify the current posts with updated front matter
+        if self._post_location == "not-set":
+            # Create Jekyll posts.
+            self.create_jekyll_event_posts(sessions, users)
+        else:
+            self.update_existing_posts(sessions, users)
 
     def create_jekyll_event_posts(self, sessions, users):
         """Create Jekyll Posts based off the output csv files from pathable."""
@@ -65,7 +80,8 @@ class JekyllConnectSessionsTool:
                         name = attendee["first_name"] + " " + attendee["second_name"]
                         # bio_formatted =  '{0}'.format(attendee["bio"])
                         # bio_formatted =  repr(attendee["bio"])
-                        bio_formatted =  f'"{attendee["bio"]}"'
+                        # bio_formatted =  f'"{attendee["bio"]}"'
+                        bio_formatted =  attendee["bio"]
                         speaker_dict = {
                                 "name":name,
                                 "biography": bio_formatted,
@@ -114,9 +130,84 @@ class JekyllConnectSessionsTool:
                 new_post_file.writelines(frontmatter.dumps(new_post))
                 print("Jekyll post created for {0} at {1}".format(session["session_id"], output_object))
 
-    def update_jekyll_posts(self, sessions, users):
+    def get_blog_posts(self, location):
+        """Takes a path and returns list of blog posts"""
+
+        # Types of files to look for in the directory
+        types = [".md",".markdown",".mdown"]
+        
+        if location.endswith("/"):
+            directory_name = location.split("/")[-2]
+        else:
+            directory_name = location.split("/")[-1]
+                
+        # Loop through and find all markdown files
+        markdown_files = []
+        for type in types:
+            for markdown_file in glob.iglob('{0}/**/*{1}'.format(location,type), recursive=True):
+                markdown_files.append(markdown_file)
+        return markdown_files
+
+    def update_existing_posts(self, sessions, users):
         """Take the latest export of sessions and users and update any information that has changed"""
-        pass
+        if self._post_location:
+            count = 0
+            blog_posts = self.get_blog_posts(self._post_location)
+            # Loop through all the markdown posts in the directory
+            for post in blog_posts:
+                changed = False
+                front_matter = frontmatter.loads(open(post,"r").read())
+                for session in sessions:
+                    if session['session_id'] == front_matter['session_id']:
+                        # Gather speaker information
+                        emails = session["speakers"].split(",")
+                        names = []
+                        for speaker_email in emails:
+                            for attendee in users:
+                                if attendee["speaker_email"] == speaker_email:
+                                    name = attendee["first_name"] + " " + attendee["second_name"]
+                                    bio_formatted =  f'"{attendee["bio"]}"'
+                                    speaker_dict = {
+                                            "name":name,
+                                            "biography": bio_formatted,
+                                            "job-title": attendee["job-title"],
+                                            "company": attendee["company"],
+                                            "speaker-image": attendee["image-name"]
+                                            }
+                                    names.append(speaker_dict)
+                        # Check if there are changes to speakers
+                        if front_matter['speakers'] != names:
+                            front_matter['speakers'] = names
+                            changed = True
+
+                        # Check if session tracks have changed.
+                        tracks = session["tracks"].replace(";",", ")
+                        if front_matter["session_track"] != tracks:
+                            front_matter["session_track"] = tracks
+                            changed = True
+                        
+                        # Check if title has changed
+                        title = re.sub('[^A-Za-z0-9-!: ()]+', '', session["title"])
+                        if front_matter['title'] != title:
+                            front_matter['title'] = title
+                            changed = True
+                        
+                        # Check if post content has changed
+                        content = session['blurb']
+                        if front_matter.content != content:
+                            front_matter.content = content
+                            changed = True
+                        
+                        if changed:
+                            # Write the changed frontmatter to the file.
+                            with open(post,"w") as changed_file:
+                                changed_file.writelines(frontmatter.dumps(front_matter))
+                                print("{0} post updated!".format(session['session_id']))
+                                count += 1
+            print("{0} posts updated!".format(count))
+                        
+        else:
+            return False
             
     def grab_session_data_from_csv(self):
         """Fetches the session data from the pathable meetings export"""
@@ -143,7 +234,6 @@ class JekyllConnectSessionsTool:
             #     print(each)
             #     input()
         return data
-
 
     def cache_file(self, data, cache_file_name):
         """Dumps the data supplied into specificed cache_file_name using pickle"""
@@ -203,4 +293,4 @@ class JekyllConnectSessionsTool:
         
 if __name__ == "__main__":
     
-    cards = JekyllConnectSessionsTool("sessions.csv","users.csv")
+    cards = JekyllConnectSessionsTool("not-set", "sessions.csv","users.csv")
