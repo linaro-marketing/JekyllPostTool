@@ -1,0 +1,8 @@
+.Python
+.DS_Store
+env/*
+*.pkl
+*.csv
+photos/
+posts/
+yvr18/
