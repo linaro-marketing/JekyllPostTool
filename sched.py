@@ -27,7 +27,7 @@ class JekyllSchedExportTool:
         # Sched.com url
         self.sched_url = sched_url
         # API Key
-        self.API_KEY = "ae421cd949aee2ff3e63a8b3f2712cfe"
+        self.API_KEY = ""
         # Speaker image path
         self.speaker_image_path = "/assets/images/speakers/bkk19/"
         # Location of posts
@@ -214,9 +214,9 @@ class JekyllSchedExportTool:
         for speaker in session_speakers_arr:
             speaker_avatar_url = speaker["avatar"]
             if len(speaker_avatar_url) < 3:
-                speaker["image"] = self.speaker_image_path + "placeholder.png"
+                speaker["image"] = "/assets/images/speakers/placeholder.png"
             else:
-                file_name = self.grab_photo(speaker_avatar_url, speaker["name"].replace(" ", ""))
+                file_name = self.grab_photo(speaker_avatar_url, slugify(speaker["name"]))
                 speaker["image"] = self.speaker_image_path + file_name
         return session_speakers_arr
                         
