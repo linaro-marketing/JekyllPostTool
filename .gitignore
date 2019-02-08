@@ -1,3 +1,5 @@
+/*
+*
 .Python
 .DS_Store
 env/*
@@ -6,3 +8,5 @@ env/*
 photos/
 posts/
 yvr18/
+!sched.py
+!
