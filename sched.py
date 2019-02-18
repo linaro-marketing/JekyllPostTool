@@ -105,9 +105,9 @@ class JekyllSchedExportTool:
 
             # Get the session id from the title
             try:
-                session_id_regex = re.compile('BKK19-K*[0-9]+')
+                session_id_regex = re.compile('BKK19-*[0-9]+K')
                 session_id = session_id_regex.findall(session_title)[0]
-                session_name = re.sub("BKK19-K*[0-9]+", "", session_title).strip()
+                session_name = re.sub("BKK19-*[0-9]+K", "", session_title).strip()
 
                 print(session_id)
                 print(session_name)
@@ -146,7 +146,7 @@ class JekyllSchedExportTool:
                             "speaker_position": speaker_details["position"],
                             "speaker_location": speaker_details["location"],
                             "speaker_image": speaker_details["image"],
-                            "speaker_bio":  "> {}".format(speaker_details["bio"]).replace("'",""),
+                            "speaker_bio":  "{}".format(speaker_details["bio"]).replace("'",""),
                         })
 
                 session_image = {
@@ -174,7 +174,7 @@ class JekyllSchedExportTool:
                         "title": session_name,
                         "session_id": session_id,
                         "session_speakers": revised_speakers,
-                        "description": "> {}".format(session_abstract).replace("'",""),
+                        "description": "{}".format(session_abstract).replace("'",""),
                         "future_image": session_image,
                         "session_room": session_room,
                         "session_slot": session_slot,
@@ -213,6 +213,7 @@ class JekyllSchedExportTool:
         """
         for speaker in session_speakers_arr:
             speaker_avatar_url = speaker["avatar"]
+            print(speaker_avatar_url)
             if len(speaker_avatar_url) < 3:
                 speaker["image"] = "/assets/images/speakers/placeholder.png"
             else:
@@ -229,9 +230,12 @@ class JekyllSchedExportTool:
         # Get the Extension from the path using os.path.splitext
         ext = os.path.splitext(path)[1]
         # Add output folder to output path
-        output =  output_path + file_name + ext
+        output =  output_path + file_name + ext 
         # Try to download the image and Except errors and return as false.
         try:
+            opener = request.build_opener()
+            opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+            request.install_opener(opener)
             image = request.urlretrieve(url, output)
             print(image)
         except Exception as e:
