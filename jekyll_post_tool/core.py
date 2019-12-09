@@ -13,7 +13,6 @@ import glob
 import requests
 import json
 from slugify import slugify
-from secrets import SchedAPIKey
 
 
 class JekyllPostTool:
@@ -22,20 +21,18 @@ class JekyllPostTool:
     This class enables you to create/edit a Jekyll markdown post.
     """
 
-    def __init__(self, post_location="not-set", sched_url=None):
-        self.connect_code = "san19"
-        # Sched.com url
-        self.sched_url = sched_url
-        # API Key
-        self.API_KEY = SchedAPIKey
-        # Speaker image path
-        self.speaker_image_path = "/assets/images/speakers/san19/"
-        # Location of posts
-        self._post_location = post_location
-        # Blacklisted tracks to ignore when creating pages/resources.json
-        self.blacklistedTracks = ["Food & Beverage", "Informational"]
-        # Local Output path for images
-        self.output_path = post_location
+    def __init__(self, options):
+        # Set the output path
+        if "output" in options:
+            if options["output"].endswith("/"):
+                self.output_path = os.getcwd() + "/" + options["output"]
+            else:
+                self.output_path = os.getcwd() + "/" + options["output"] + "/"
+        else:
+            self.output_path = os.getcwd() + "/output"
+        # Check to see if the output path exists and create if not
+        if not os.path.exists(self.output_path):
+            os.makedirs(self.output_path)
         # Main Method
         self.main()
 
@@ -52,6 +49,25 @@ class JekyllPostTool:
         # Create Update Delete the Jekyll event posts
         self.crud_jekyll_posts(self.sessions_data, self.users_data)
         self.generate_resources_json_file(self.sessions_data)
+
+    def create_post(self, front_matter, content, file_name):
+        """Creates Jekyll markdown post
+
+        Parameters
+        ----------
+        front_matter : dict/json
+            A dict/json object containing the values to be used in the front matter of the post.
+        content : text
+            The text content of a post. This can contain newline characters and markdown formatting.
+        file_name: string
+            The output file name of the post e.g 2019-12-12-my-new-jekyll-post.md
+
+        Returns
+        -------
+        boolean: True if created successfully otherwise False.
+
+        """
+        pass
 
     def generate_resources_json_file(self, sessions):
         """
