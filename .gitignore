@@ -1,12 +1,5 @@
-/*
-*
-.Python
+*__pycache__*
 .DS_Store
-env/*
-*.pkl
-*.csv
-photos/
-posts/
-yvr18/
-!sched.py
-!
+venv/*
+secrets.py
+*.txt
