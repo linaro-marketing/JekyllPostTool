@@ -1,2 +1,3 @@
-# SchedJekyllPostTool
-This python3 script takes an export from sched.com and ouputs jekyll post files for Linaro Connect (Bangkok 2019)
+# Jekyll Post Tool
+
+This python3 script makes creating Jekyll posts a _breeze_. Supply a dictionary object for the _front matter_ and some post content and get back a Jekyll markdown post.
