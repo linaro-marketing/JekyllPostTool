@@ -293,4 +293,4 @@ class JekyllConnectSessionsTool:
         
 if __name__ == "__main__":
     
-    cards = JekyllConnectSessionsTool("yvr18/", "sessions.csv","users.csv")
+    cards = JekyllConnectSessionsTool("bkk19/", "sessions.csv", "users.csv")
