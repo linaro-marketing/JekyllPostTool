@@ -3,4 +3,6 @@
 !jekyll_post_tool/*
 !requirements.txt
 !README.md
+!LICENSE
+!setup.py
 *__pycache__*
