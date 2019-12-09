@@ -1,6 +1,6 @@
+*
+!examples/*
+!jekyll_post_tool/*
+!requirements.txt
+!README.md
 *__pycache__*
-.DS_Store
-venv/*
-secrets.py
-*.txt
-assets/*
