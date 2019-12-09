@@ -1,45 +1,43 @@
+from slugify import slugify
+from urllib import request
 import sys
 import os
+import re
+from urllib.parse import urlparse
 sys.path.insert(0, os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..')))
-from urllib import request
-import io
-import textwrap
-import csv
-from urllib.parse import urlparse
-import frontmatter
-from io import BytesIO
-import datetime
-import re
-import datetime
-import glob
 import requests
-import json
-from slugify import slugify
+import datetime
+
+from jekyll_post_tool import JekyllPostTool
 from secrets import SCHED_API_KEY
 
-
-class JekyllSchedExportTool:
+class ConnectSchedJekyllPosts:
 
     """
-    This class can create and modifies Jekyll posts for the Connect static website
-    based on export data from Pathable.
+    This class handles the creation of Jekyll posts based on the sched.com API.
     """
 
-    def __init__(self, post_location="not-set", sched_url=None):
+    def __init__(self, sched_url, output_path="san19/"):
+        # Import API Secret
+        self.API_KEY = SCHED_API_KEY
+        # Connect Code
         self.connect_code = "san19"
         # Sched.com url
         self.sched_url = sched_url
-        # API Key
-        self.API_KEY = SCHED_API_KEY
         # Speaker image path
         self.speaker_image_path = "/assets/images/speakers/san19/"
         # Location of posts
-        self._post_location = post_location
+        self.output_path = output_path
+        self.posts_output_path = output_path + "posts/"
+        self.images_output_path = output_path + "images/"
         # Blacklisted tracks to ignore when creating pages/resources.json
         self.blacklistedTracks = ["Food & Beverage", "Informational"]
-        # Local Output path for images
-        self.output_path = post_location
+
+        # Setup a new instance of the JekyllPostTool
+        self.post_tool = JekyllPostTool(
+            {"output": self.output_path + "posts/" })
+
         # Main Method
         self.main()
 
@@ -55,54 +53,8 @@ class JekyllSchedExportTool:
             "/api/user/list?api_key={0}&format=json")
         # Create Update Delete the Jekyll event posts
         self.crud_jekyll_posts(self.sessions_data, self.users_data)
-        self.generate_resources_json_file(self.sessions_data)
 
-    def generate_resources_json_file(self, sessions):
-        """
-            Generates a resources.json file used for retreiving the presentations/videos for each session
-        """
-        resources_json = []
-        for session in sessions:
-            session_title = session["name"]
-            try:
-                session_track = session["event_type"]
-            except Exception as e:
-                print(e)
-                session_track = None
-            if session_track not in self.blacklistedTracks:
-                # Get the session id from the title
-                try:
-                    session_id_regex = re.compile(
-                        'SAN19-[A-Za-z]*[0-9]+K*[0-9]*')
-                    session_id = session_id_regex.findall(session_title)[0]
-                    session_name = re.sub(
-                        "SAN19-[A-Za-z]*[0-9]+K*[0-9]*", "", session_title).strip()
-                    skipping = False
-                # Check to see if a session id exists in the title
-                # if not then skip this session - marking as invalid if no session id is present.
-                except Exception as e:
-                    skipping = True
-            else:
-                skipping = True
-            if skipping == False:
-                session_id_lower = session_id.lower()
-                resources_session_obj = {
-                    "slideshare_url": "",
-                    "s3_presentation_url": "",
-                    "s3_video_url": "",
-                    "youtube_video_url": "",
-                    "other_files": "",
-                    "session_id": session_id
-                }
-                resources_json.append(resources_session_obj)
-
-        with open("resources.json", "w") as resourcesFile:
-            resourcesFile.writelines(json.dumps(resources_json))
-
-        print(
-            "Resources.json file written. Please upload to https://s3.amazonaws.com/connect.linaro.org/{0}/resources.json".format(self.connect_code))
-        print("aws s3 --profile connect-linaro-org-Owner cp resources.json s3://connect.linaro.org/{}/resources.json".format(self.connect_code))
-        input("Press enter to continue...")
+        # self.generate_resources_json_file(self.sessions_data)
 
     def get_api_results(self, endpoint):
         """
@@ -122,14 +74,10 @@ class JekyllSchedExportTool:
             This method creates/updates/deletes jekyll posts based on api results
         """
         for session in sessions_data:
-            # Open a default template blog post.
-            session_post = frontmatter.loads(open("assets/template.md", "r").read())
             # Grab the relevant data from the sessions results
             sched_event_id = session["event_key"]
             session_active = session["active"]
             session_title = session["name"]
-
-            print(session_title)
             session_start_time = session["event_start"]
             session_end_time = session["event_end"]
             try:
@@ -224,15 +172,10 @@ class JekyllSchedExportTool:
                     "end_time": session_end_time,
                 }
                 # Session Tracks
-
                 if session_sub_track != None:
                     session_tracks = session_sub_track.split(",")
-
                 if session_track != None:
                     main_track = session_track.strip()
-
-                with open("titles.txt", "a+") as my_file:
-                    my_file.write(session_name + "\n")
 
                 post_frontmatter = {
                     "title": session_id + " - " + session_name,
@@ -248,14 +191,25 @@ class JekyllSchedExportTool:
                     "session_attendee_num": session_attendee_num,
                     "tag": "session",
                 }
-                session_post.metadata = post_frontmatter
-                session_post.content = ""
+
                 post_file_name = datetime.datetime.now().strftime(
                     "%Y-%m-%d") + "-" + session_id.lower() + ".md"
-                post_file_path = self._post_location + post_file_name
-                print("Writing {0}".format(post_file_path))
-                with open(post_file_path, "w+") as new_post_file:
-                    new_post_file.writelines(frontmatter.dumps(session_post))
+
+                post_file_path = self.posts_output_path + post_file_name
+
+                if os.path.exists(post_file_path):
+                    edited = self.post_tool.edit_post(post_frontmatter, "", post_file_name)
+                    if edited:
+                        print("{} has been edited!".format(post_file_name))
+                    else:
+                        print("{} has not been edited!".format(post_file_name))
+                else:
+                    created = self.post_tool.create_post(post_frontmatter, "", post_file_name)
+                    if created:
+                        print("{} has been written!".format(post_file_name))
+            else:
+                print("Skipping {}".format(session_title))
+
 
     def get_speaker_bio(self, speaker):
         """
@@ -291,8 +245,12 @@ class JekyllSchedExportTool:
                 speaker["image"] = self.speaker_image_path + file_name
         return session_speakers_arr
 
-    def grab_photo(self, url, output_filename, output_path="speaker_images/"):
+    def grab_photo(self, url, output_filename):
         """Fetches attendee photo from the pathable data"""
+        speaker_image_dest = self.images_output_path
+
+        if not os.path.exists(speaker_image_dest):
+            os.makedirs(speaker_image_dest)
         # Get the filename parsed in
         file_name = output_filename
         # Extract the path from the URL
@@ -300,7 +258,7 @@ class JekyllSchedExportTool:
         # Get the Extension from the path using os.path.splitext
         ext = os.path.splitext(path)[1]
         # Add output folder to output path
-        output = output_path + file_name + ext
+        output = speaker_image_dest + file_name + ext
         # Try to download the image and Except errors and return as false.
         try:
             opener = request.build_opener()
@@ -314,6 +272,4 @@ class JekyllSchedExportTool:
 
 
 if __name__ == "__main__":
-
-    cards = JekyllSchedExportTool(
-        "san19/", "https://linaroconnectsandiego.sched.com")
+    ConnectSchedJekyllPosts("https://linaroconnectsandiego.sched.com")
