@@ -40,12 +40,13 @@ class JekyllPostTool:
 
         Returns
         -------
-        string: path to the file that has been modified
+        boolean: returns True if the post was edited False if not.
 
         """
         # Create the output path
         output_file_path = self.output_path + file_name
         jekyll_post = None
+        edited = False
         # Open the current file
         with open(output_file_path, "r") as current_post_file:
             jekyll_post = frontmatter.loads(current_post_file.read())
@@ -55,6 +56,7 @@ class JekyllPostTool:
                 print("Updating post front matter...")
             # Updated the front matter with any changed values
             jekyll_post.metadata.update(front_matter)
+            edited = True
         else:
             if self._verbose:
                 print("Post front matter hasn't changed...")
@@ -65,6 +67,7 @@ class JekyllPostTool:
             if self._verbose:
                 print("Updating post content...")
             jekyll_post.content = content
+            edited = True
         else:
             if self._verbose:
                 print("Post content hasn't changed...")
@@ -72,7 +75,7 @@ class JekyllPostTool:
         with open(output_file_path, "w") as edited_file:
             edited_file.writelines(frontmatter.dumps(jekyll_post))
 
-        return output_file_path
+        return edited
 
     def create_post(self, front_matter, content, file_name):
         """Creates Jekyll markdown post
@@ -88,7 +91,7 @@ class JekyllPostTool:
 
         Returns
         -------
-        string: path to the new file that has been written.
+        boolean: returns True if the file was written successfully and returns False if not.
 
         """
         # Create the output path
@@ -104,9 +107,7 @@ class JekyllPostTool:
             new_post.content = content
         # Write the New file
         with open(output_file_path, "w+") as new_post_file:
-                new_post_file.writelines(frontmatter.dumps(new_post))
-
-        return output_file_path
+            new_post_file.writelines(frontmatter.dumps(new_post))
 
         if self._verbose:
             print("File written to {}".format(output_file_path))
@@ -116,6 +117,8 @@ class JekyllPostTool:
             print()
             print("Front Matter \n")
             print(new_post.metadata)
+
+        return True
 
 
 if __name__ == "__main__":
