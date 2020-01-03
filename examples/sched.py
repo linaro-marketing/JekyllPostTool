@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..')))
 import requests
 import datetime
+import json
 
 from jekyll_post_tool import JekyllPostTool
 from secrets import SCHED_API_KEY
@@ -19,6 +20,8 @@ class ConnectSchedJekyllPosts:
     """
 
     def __init__(self, sched_url, output_path="san19/"):
+        # Script verbosity
+        self._verbose = True
         # Import API Secret
         self.API_KEY = SCHED_API_KEY
         # Connect Code
@@ -36,7 +39,7 @@ class ConnectSchedJekyllPosts:
 
         # Setup a new instance of the JekyllPostTool
         self.post_tool = JekyllPostTool(
-            {"output": self.output_path + "posts/" })
+            {"output": self.output_path + "posts/" }, verbose=True)
 
         # Main Method
         self.main()
@@ -68,6 +71,24 @@ class ConnectSchedJekyllPosts:
         except Exception as e:
             print(e)
             return False
+
+    # def get_session_data(self, sessions_data, users_data):
+    #     """Get the complete data for each session
+
+    #     Parameters
+    #     ----------
+    #     sessions_data: dict/json object
+    #         The sessions data from the sched.com API
+    #     users_data: dict/json object
+    #         The users data from the sched.com API
+
+    #     Returns
+    #     -------
+    #     json: returns the complete sessions data object
+
+    #     """
+
+
 
     def crud_jekyll_posts(self, sessions_data, users_data):
         """
@@ -147,6 +168,9 @@ class ConnectSchedJekyllPosts:
                             "speaker_bio":  "{}".format(speaker_details["bio"]).replace("'", ""),
                         })
 
+                # Session Tracks
+                if session_sub_track != None:
+                    session_tracks = session_sub_track.split(",")
 
                 session_image = {
                     "path": "/assets/images/featured-images/san19/" + session_id + ".png",
@@ -157,11 +181,6 @@ class ConnectSchedJekyllPosts:
                     "start_time": session_start_time,
                     "end_time": session_end_time,
                 }
-                # Session Tracks
-                if session_sub_track != None:
-                    session_tracks = session_sub_track.split(",")
-                if session_track != None:
-                    main_track = session_track.strip()
 
                 post_frontmatter = {
                     "title": session_id + " - " + session_name,
@@ -180,18 +199,13 @@ class ConnectSchedJekyllPosts:
                 post_file_name = datetime.datetime.now().strftime(
                     "%Y-%m-%d") + "-" + session_id.lower() + ".md"
 
+                # Path to the new file
                 post_file_path = self.posts_output_path + post_file_name
 
-                if os.path.exists(post_file_path):
-                    edited = self.post_tool.edit_post(post_frontmatter, "", post_file_name)
-                    if edited:
-                        print("{} has been edited!".format(post_file_name))
-                    else:
-                        print("{} has not been edited!".format(post_file_name))
-                else:
-                    created = self.post_tool.create_post(post_frontmatter, "", post_file_name)
-                    if created:
-                        print("{} has been written!".format(post_file_name))
+                # Edit posts if file already exists
+                created = self.post_tool.write_post(post_frontmatter, "", post_file_name)
+                print("{} has been written!".format(post_file_name))
+
             else:
                 print("Skipping {}".format(session_title))
 
@@ -244,15 +258,22 @@ class ConnectSchedJekyllPosts:
         ext = os.path.splitext(path)[1]
         # Add output folder to output path
         output = speaker_image_dest + file_name + ext
-        # Try to download the image and Except errors and return as false.
-        try:
-            opener = request.build_opener()
-            opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-            request.install_opener(opener)
-            image = request.urlretrieve(url, output)
-        except Exception as e:
-            print(e)
-            image = False
+
+        if os.path.exists(output):
+            if self._verbose:
+                print("skipping download of photo")
+            return (file_name + ext)
+        else:
+            # Try to download the image and Except errors and return as false.
+            try:
+                opener = request.build_opener()
+                opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+                request.install_opener(opener)
+                image = request.urlretrieve(url, output)
+            except Exception as e:
+                print(e)
+                image = False
+
         return(file_name + ext)
 
 
