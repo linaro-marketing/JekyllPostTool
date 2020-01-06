@@ -19,7 +19,7 @@ class ConnectSchedJekyllPosts:
     This class handles the creation of Jekyll posts based on the sched.com API.
     """
 
-    def __init__(self, sched_url, output_path="san19/"):
+    def __init__(self, sched_url, SCHED_API_KEY, output_path="san19/"):
         # Script verbosity
         self._verbose = True
         # Import API Secret
