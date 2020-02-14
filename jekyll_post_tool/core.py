@@ -24,7 +24,7 @@ class JekyllPostTool:
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
 
-    def write_post(self, front_matter, content, file_name):
+    def write_post(self, front_matter, content, file_name, remove_old=False):
         """Creates Jekyll markdown post
 
         Parameters
@@ -41,6 +41,8 @@ class JekyllPostTool:
         boolean: returns True if the file was written successfully and returns False if not.
 
         """
+        if remove_old:
+            os.remove(remove_old)
         # Create the output path
         output_file_path = self.output_path + file_name
         # New post var with a higher scope
@@ -60,7 +62,6 @@ class JekyllPostTool:
             print("File written to {}".format(output_file_path))
 
         return True
-
 
 if __name__ == "__main__":
 
