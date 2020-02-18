@@ -19,21 +19,21 @@ class ConnectSchedJekyllPosts:
     This class handles the creation of Jekyll posts based on the sched.com API.
     """
 
-    def __init__(self, sched_url, SCHED_API_KEY, output_path="san19/"):
+    def __init__(self, sched_url, SCHED_API_KEY, connect_code):
         # Script verbosity
         self._verbose = True
         # Import API Secret
         self.API_KEY = SCHED_API_KEY
         # Connect Code
-        self.connect_code = "san19"
+        self.connect_code = connect_code
         # Sched.com url
         self.sched_url = sched_url
         # Speaker image path
         self.speaker_image_path = "/assets/images/speakers/san19/"
         # Location of posts
-        self.output_path = output_path
-        self.posts_output_path = output_path + "posts/"
-        self.images_output_path = output_path + "images/"
+        self.output_path = self.connect_code + "/"
+        self.posts_output_path = self.output_path + "posts/"
+        self.images_output_path = self.output_path + "images/"
         # Blacklisted tracks to ignore when creating pages/resources.json
         self.blacklistedTracks = ["Food & Beverage", "Informational"]
 
@@ -122,15 +122,16 @@ class ConnectSchedJekyllPosts:
             if session_track not in self.blacklistedTracks:
                 # Get the session id from the title
                 session_id_regex = re.compile(
-                    'SAN19-[A-Za-z]*[0-9]+K*[0-9]*')
+                    '{0}-[A-Za-z]*[0-9]+K*[0-9]*'.format(self.connect_code.upper()))
                 session_id = session_id_regex.findall(session_title)
                 if len(session_id) == 0:
                     skip_session = True
                 else:
                     session_id = session_id[0]
                     session_name = re.sub(
-                        "SAN19-[A-Za-z]*[0-9]+K*[0-9]*", "", session_title).strip()
+                        "{0}-[A-Za-z]*[0-9]+K*[0-9]*".format(self.connect_code.upper()), "", session_title).strip()
             else:
+                print(session_track)
                 skip_session = True
 
             if not skip_session:
@@ -168,9 +169,17 @@ class ConnectSchedJekyllPosts:
                             "speaker_bio":  "{}".format(speaker_details["bio"]).replace("'", ""),
                         })
 
-                # Session Tracks
-                if session_sub_track != None:
-                    session_tracks = session_sub_track.split(",")
+                if session_track:
+                    if session_sub_track:
+                        if "," in session_sub_track:
+                            session_tracks = session_sub_track.split(",")
+                            session_tracks.append(session_track)
+                        else:
+                            if session_sub_track != "":
+                                session_tracks = session_track + ", " + session_sub_track
+                    else:
+                        session_tracks = session_track
+
 
                 session_image = {
                     "path": "/assets/images/featured-images/san19/" + session_id + ".png",
@@ -278,4 +287,5 @@ class ConnectSchedJekyllPosts:
 
 
 if __name__ == "__main__":
-    ConnectSchedJekyllPosts("https://linaroconnectsandiego.sched.com")
+    ConnectSchedJekyllPosts("https://bud20.sched.com",
+                            SCHED_API_KEY, "bud20")
