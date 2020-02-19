@@ -15,9 +15,9 @@ class JekyllPostTool:
         # Set the output path
         if "output" in options:
             if options["output"].endswith("/"):
-                self.output_path = os.getcwd() + "/" + options["output"]
+                self.output_path = options["output"]
             else:
-                self.output_path = os.getcwd() + "/" + options["output"] + "/"
+                self.output_path = options["output"] + "/"
         else:
             self.output_path = os.getcwd() + "/output"
         # Check to see if the output path exists and create if not
